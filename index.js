@@ -6,7 +6,7 @@ const paddle_Height = wall;
 const paddle_Width = paddle_Height * 5;
 const paddle_Speed = .7; //fraction of screen width per sec
 
-const ball_Speed = .5; //starting speed as fraction of screen width per sec
+const ball_Speed = 200; 
 const ball_Size = wall; 
 
 const color_Background = "black";
@@ -70,6 +70,14 @@ function loop(timeNow)
     requestAnimationFrame(loop);
 }
 
+function applyBallSpeed(angle)
+{
+    //update x and y velocities of ball
+    ball.xv = ball_Speed * Math.cos(angle);
+    ball.yv = -ball_Speed * Math.sin(angle);
+
+}
+
 function drawBackground()
 {
     ctx.fillStyle = color_Background;
@@ -103,6 +111,9 @@ function drawBall()
 function keyDown(ev)
 {
     switch (ev.keyCode) {
+        case 32: //space bar (serve the ball)
+            serve();
+            break;
         case 37: //left arrow
             movePaddle(Direction.left);
             break;
@@ -169,6 +180,18 @@ function updateBall(delta)
     {
         ball.x = paddle.x;
     }
+}
+
+function serve()
+{
+    if(ball.yv != 0)
+    {
+        return;
+    }
+    
+    //random angle, between 45 and 135 degrees
+    let angle = Math.random() * Math.PI / 2 + Math.PI / 4;
+    applyBallSpeed(angle);
 }
 
 
