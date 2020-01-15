@@ -8,6 +8,7 @@ const paddle_Speed = .7; //fraction of screen width per sec
 
 const ball_Speed = 200; 
 const ball_Size = wall; 
+const ball_Spin = .2;//ball deflection off paddle
 
 const color_Background = "black";
 const color_Wall = "grey";
@@ -72,6 +73,17 @@ function loop(timeNow)
 
 function applyBallSpeed(angle)
 {
+
+    //keep angle between 30 and 150 degrees
+    if(angle < Math.PI / 6)
+    {
+        angle = Math.PI / 6;
+    }
+    else if(angle > Math.PI * 5/6)
+    {
+        angle = Math.PI * 5/6;
+    }
+
     //update x and y velocities of ball
     ball.xv = ball_Speed * Math.cos(angle);
     ball.yv = -ball_Speed * Math.sin(angle);
@@ -175,6 +187,47 @@ function updateBall(delta)
     ball.x += ball.xv * delta;
     ball.y += ball.yv * delta;
 
+    //bounce ball off left wall
+    if(ball.x < wall + ball.w * 0.5)
+    {
+        ball.x = wall + ball.w * 0.5;
+        ball.xv = -ball.xv;
+    }
+    //bounce ball off right wall
+    else if(ball.x > canv.width - wall - ball.w * 0.5)
+    {
+        ball.x = canv.width - wall - ball.w * 0.5;
+        ball.xv = -ball.xv;
+    }
+    //bounce ball off top wall
+    else if(ball.y < wall + ball.h * 0.5)
+    {
+        ball.y < wall + ball.h * 0.5;
+        ball.yv = -ball.yv;
+    }
+
+    //bounce off paddle
+    if(ball.y > paddle.y - paddle.h * 0.5 - ball.h * 0.5 
+        && ball.y < paddle.y 
+        && ball.x > paddle.x - paddle.w * 0.5 - ball.w * 0.5
+        && ball.x < paddle.x + paddle.w * 0.5 + ball.w * 0.5)
+    {
+        ball.y = paddle.y - paddle.h * 0.5 - ball.h * 0.5;
+        ball.yv = -ball.yv;
+
+        //modify angle based on "ball spin"
+        let angle = Math.atan2(-ball.yv, ball.xv);
+        angle += (Math.random() * Math.PI / 2 - Math.PI / 4) * ball_Spin;
+        applyBallSpeed(angle);
+
+    }
+
+    //handle out of bounds
+    if(ball.y > canv.height)
+    {
+        outOfBounds();
+    }
+
     //move stationary ball with paddle
     if(ball.yv == 0)
     {
@@ -184,6 +237,7 @@ function updateBall(delta)
 
 function serve()
 {
+    //ball already in motion
     if(ball.yv != 0)
     {
         return;
@@ -194,7 +248,10 @@ function serve()
     applyBallSpeed(angle);
 }
 
-
+function outOfBounds()
+{
+    newGame();
+}
 
 function Paddle()
 {
