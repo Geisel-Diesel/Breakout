@@ -1,4 +1,4 @@
-const height = 550; //Parameters
+const height = window.innerHeight; //Parameters
 const width = height *.9; //Dimensions
 const wall = width / 50;
 
