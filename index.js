@@ -1,14 +1,16 @@
-const height = window.innerHeight; //Parameters
-const width = height *.9; //Dimensions
-const wall = width / 50;
+const WALL = 0.02; //wall, ball, paddle size as a fraction of the shortest screen dimension
+var height, width, wall;
+height = window.innerHeight; //Parameters
+width = window.innerWidth; //Dimensions
+wall = WALL * (height < width ? height : width);
 
-const paddle_Height = wall;
-const paddle_Width = paddle_Height * 5;
+const paddle_Width = .1;
 const paddle_Speed = .7; //fraction of screen width per sec
 
 const ball_Speed = 200; 
-const ball_Size = wall; 
-const ball_Spin = .2;//ball deflection off paddle
+const ball_Spin = 0.5;//ball deflection off paddle
+
+
 
 const color_Background = "black";
 const color_Wall = "grey";
@@ -255,8 +257,8 @@ function outOfBounds()
 
 function Paddle()
 {
-    this.w = paddle_Width;
-    this.h = paddle_Height;
+    this.w = paddle_Width * width;
+    this.h = wall;
     this.x = canv.width / 2;
     this.y = canv.height - this.h * 3;
     this.spd = paddle_Speed * width;
@@ -265,11 +267,11 @@ function Paddle()
 
 function Ball()
 {
-    this.w = ball_Size;
-    this.h = ball_Size;
+    this.w = wall;
+    this.h = wall;
     this.x = paddle.x;
     this.y = paddle.y - paddle.h / 2 - this.h / 2;
-    this.spd = ball_Speed * width;
+    this.spd = ball_Speed * height;
     this.xv = 0;
     this.yv = 0;
 }
