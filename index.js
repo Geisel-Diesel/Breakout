@@ -1,8 +1,5 @@
 const WALL = 0.02; //wall, ball, paddle size as a fraction of the shortest screen dimension
-var height, width, wall;
-height = window.innerHeight; //Parameters
-width = window.innerWidth; //Dimensions
-wall = WALL * (height < width ? height : width);
+
 
 const paddle_Width = .1;
 const paddle_Speed = .7; //fraction of screen width per sec
@@ -23,15 +20,14 @@ const Direction = {
     stop: 2
 }
 
-//game canvas
+//set up game canvas and context
 var canv = document.createElement("canvas");
-canv.width = width;
-canv.height = height;
 document.body.appendChild(canv);
-
-//set context
 var ctx = canv.getContext("2d");
-ctx.lineWidth = wall;
+
+//dimensions
+var height, width, wall;
+setDimensions();
 
 //game variables
 var paddle;
@@ -41,8 +37,13 @@ var ball;
 newGame();
 
 //event listeners
+canv.addEventListener("touchcancel", touchCancel);
+canv.addEventListener("touchend", touchEnd);
+canv.addEventListener("touchmove", touchMove);
+canv.addEventListener("touchstart", touchStart);
 document.addEventListener("keydown", keyDown);
 document.addEventListener("keyup", keyUp);
+window.addEventListener("resize", setDimensions);
 
 //set game loop
 var timeDelta, timeLast;
@@ -248,6 +249,55 @@ function serve()
     //random angle, between 45 and 135 degrees
     let angle = Math.random() * Math.PI / 2 + Math.PI / 4;
     applyBallSpeed(angle);
+}
+
+function setDimensions()
+{
+    height = window.innerHeight; 
+    width = window.innerWidth; 
+    wall = WALL * (height < width ? height : width);
+    canv.width = width;
+    canv.height = height;
+    ctx.lineWidth = wall;
+    paddle = new Paddle();
+    ball = new Ball();
+}
+
+function touch(X)
+{
+    if(!x)
+    {
+        movePaddle(Direction.STOP);
+    }
+    else if(x > paddle.x)
+    {
+        movePaddle(Direction.RIGHT);
+    }
+    else if(x < paddle.x)
+    {
+        movePaddle(Direction.LEFT);
+    }
+}
+
+function touchCancel(ev)
+{
+    touch(null);
+}
+
+function touchEnd(ev)
+{
+    touch(null);
+}
+
+function touchMove(ev)
+{
+    touch(ev.touches[0].clientX);
+}
+
+function touchStart(ev)
+{
+    serve();
+    touch(ev.touches[0].clientX);
 }
 
 function outOfBounds()
