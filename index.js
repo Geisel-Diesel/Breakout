@@ -373,6 +373,7 @@ function Brick(left, top, w, h, color) {
     this.right = left + w;
     this.top = top;
     this.color = color;
+    
 
     this.intersect = function(ball) {
         let bBot = ball.y + ball.h * 0.5;
