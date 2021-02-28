@@ -1,20 +1,32 @@
 // game parameters
-const BALL_SPD = 0.5; // starting ball speed as a fraction of screen height per second
-const BALL_SPIN = 0.2; // ball deflection off the paddle (0 = no spin, 1 = high spin)
+const GAME_LIVES = 3; //starting number of lives
+const KEY_SCORE = "high score"; //save key for local storage o high score
+const BALL_SPD = 0.6; // starting ball speed as a fraction of screen height per second
+const BALL_SPIN = 0.3; // ball deflection off the paddle (0 = no spin, 1 = high spin)
 const BRICK_COLS = 14; // number of brick columns
 const BRICK_GAP = 0.3; // brick gap as a fraction of wall width
 const BRICK_ROWS = 8; // starting number of brick rows
 const MARGIN = 6; // number of empty rows above the bricks
 const MAX_LEVEL = 10; // maximum game level (+2 rows of bricks per level)
+const MIN_BOUNCE_ANGLE = 30; //minimum bounce angle from horizontal in degrees
 const PADDLE_SPD = 0.5; // fraction of screen width per second
 const PADDLE_W = 0.1; // paddle width as a fraction of screen width
 const WALL = 0.02; // wall/ball/paddle size as a fraction of the shortest screen dimension
 
 // colours
 const COLOR_BACKGROUND = "black";
+const COLOR_TEXT = "white";
 const COLOR_BALL = "white";
 const COLOR_PADDLE = "white";
 const COLOR_WALL = "grey";
+
+//text
+const TEXT_FONT = "Lucida Console";
+const TEXT_LEVEL = "Level";
+const TEXT_LIVES = "Ball";
+const TEXT_SCORE = "Score";
+const TEXT_SCORE_HIGH = "Best";
+
 
 // definitions
 const Direction = {
@@ -29,7 +41,9 @@ document.body.appendChild(canv);
 var ctx = canv.getContext("2d");
 
 // game variables
-var ball, bricks = [], level, paddle, touchX;
+var ball, bricks = [], paddle;
+var level, lives, score, highScore;
+var textSize, touchX;
 
 // dimensions
 var height, width, wall;
@@ -67,20 +81,15 @@ function loop(timeNow) {
     drawWalls();
     drawPaddle();
     drawBricks();
+    drawText();
     drawBall();
 
     // call the next loop
     requestAnimationFrame(loop);
 }
 
+// update the x and y velocities of the ball
 function applyBallSpeed(angle) {
-
-    // keep the angle between 30 and 150 degrees
-    if (angle < Math.PI / 6) {
-        angle = Math.PI / 6;
-    } else if (angle > Math.PI * 5 / 6) {
-        angle = Math.PI * 5 / 6;
-    }
 
     // update the x and y velocities of the ball
     ball.xv = ball.spd * Math.cos(angle);
@@ -97,6 +106,7 @@ function createBricks() {
     let rowH = totalSpaceY / totalRows;
     let gap = wall * BRICK_GAP;
     let h = rowH - gap;
+    textSize = rowH * MARGIN * 0.5;
 
     // column dimensions
     let totalSpaceX = width - wall * 2;
@@ -146,6 +156,46 @@ function drawBricks() {
 function drawPaddle() {
     ctx.fillStyle = COLOR_PADDLE;
     ctx.fillRect(paddle.x - paddle.w * 0.5, paddle.y - paddle.h * 0.5, paddle.w, paddle.h);
+}
+
+function drawText() {
+    ctx.fillStyle = COLOR_TEXT;
+
+    //dimensions
+    let lableSize = textSize * 0.5;
+    let margin = wall * 2;
+    let maxWidth = width - margin * 2;
+    let maxWidth1 = maxWidth * 0.3;
+    let maxWidth2 = maxWidth * 0.2;
+    let maxWidth3 = maxWidth * 0.2;
+    let maxWidth4 = maxWidth * 0.3;
+    let x1 = margin;
+    let x2 = width * 0.4;
+    let x3 = width * 0.6;
+    let x4 = width - margin;
+    let yLabel = wall + lableSize;
+    let yValue = yLabel + textSize * 0.7; 
+
+    //draw labels
+    ctx.font = lableSize + "px " + TEXT_FONT;
+    ctx.textAlign = "left";
+    ctx.fillText(TEXT_SCORE, x1, yLabel, maxWidth1);
+    ctx.textAlign = "center";
+    ctx.fillText(TEXT_LIVES, x2, yLabel, maxWidth2);
+    ctx.fillText(TEXT_LEVEL, x3, yLabel, maxWidth3);
+    ctx.textAlign = "right";
+    ctx.fillText(TEXT_SCORE_HIGH, x4, yLabel, maxWidth4);
+
+    //values
+    ctx.font = textSize + "px " + TEXT_FONT;
+    ctx.textAlign = "left";
+    ctx.fillText(score, x1, yValue, maxWidth1);
+    ctx.textAlign = "center";
+    ctx.fillText(lives + "/" + GAME_LIVES, x2, yValue, maxWidth2);
+    ctx.fillText(level, x3, yValue, maxWidth3);
+    ctx.textAlign = "right";
+    ctx.fillText(highScore, x4, yValue, maxWidth4);
+
 }
 
 function drawWalls() {
@@ -217,11 +267,32 @@ function movePaddle(direction) {
     }
 }
 
-function newGame() {
+function newBall() {
     paddle = new Paddle();
     ball = new Ball();
+}
+
+function newGame() {
     level = 0;
+    lives = GAME_LIVES;
+    score = 0;
+
+    //get high score from local storage
+    let scoreStr = localStorage.getItem(KEY_SCORE);
+    if(scoreStr == null) {
+        highScore = 0;
+    } else {
+        highScore = parseInt(scoreStr);
+    }
+
+    //Start a new level
+     newLevel();
+    
+}
+
+function newLevel() {
     touchX = null;
+    newBall();
     createBricks();
 }
 
@@ -250,7 +321,31 @@ function setDimensions() {
     canv.width = width;
     canv.height = height;
     ctx.lineWidth = wall;
+    ctx.textBaseline = "middle";
     newGame();
+}
+
+function spinBall() {
+      let upwards = ball.yv < 0; //ball is traveling up the screen
+      let angle = Math.atan2(-ball.yv, ball.xv);
+      angle += (Math.random() * Math.PI / 2 - Math.PI / 4) * BALL_SPIN;
+
+      // minimum bounce angle
+    let minBounceAngle = MIN_BOUNCE_ANGLE / 180 * Math.PI; //radians
+    if(upwards) {
+        if (angle < minBounceAngle) {
+            angle = minBounceAngle
+        } else if (angle < -Math.PI + minBounceAngle) {
+            angle = -Math.PI + minBounceAngle;
+        }
+      applyBallSpeed(angle);
+    } else {
+        if (angle > -minBounceAngle) { //angle is greater than -30
+            angle = -minBounceAngle
+        } else if (angle > Math.PI - minBounceAngle) { //less than -150
+            angle = Math.PI - minBounceAngle;
+        }
+    }
 }
 
 function touchCancel(ev) {
@@ -282,12 +377,15 @@ function updateBall(delta) {
     if (ball.x < wall + ball.w * 0.5) {
         ball.x = wall + ball.w * 0.5;
         ball.xv = -ball.xv;
+        spinBall(); 
     } else if (ball.x > width - wall - ball.w * 0.5) {
         ball.x = width - wall - ball.w * 0.5;
         ball.xv = -ball.xv;
+        spinBall(); 
     } else if (ball.y < wall + ball.h * 0.5) {
         ball.y = wall + ball.h * 0.5;
         ball.yv = -ball.yv;
+        spinBall(); 
     }
 
     // bounce off the paddle
@@ -299,10 +397,7 @@ function updateBall(delta) {
         ball.y = paddle.y - paddle.h * 0.5 - ball.h * 0.5;
         ball.yv = -ball.yv;
 
-        // modify the angle based off ball spin
-        let angle = Math.atan2(-ball.yv, ball.xv);
-        angle += (Math.random() * Math.PI / 2 - Math.PI / 4) * BALL_SPIN;
-        applyBallSpeed(angle);
+        spinBall(); 
     }
 
     // handle out of bounds
@@ -324,6 +419,7 @@ function updateBricks(delta) {
             if (bricks[i][j] != null && bricks[i][j].intersect(ball)) {
                 bricks[i][j] = null;
                 ball.yv = -ball.yv;
+                spinBall(); 
                 // TODO score etc.
                 break OUTER;
             }
