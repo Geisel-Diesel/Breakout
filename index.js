@@ -22,6 +22,7 @@ const COLOR_WALL = "grey";
 
 //text
 const TEXT_FONT = "Lucida Console";
+const TEXT_GAME_OVER = "GAME OVER";
 const TEXT_LEVEL = "Level";
 const TEXT_LIVES = "Ball";
 const TEXT_SCORE = "Score";
@@ -42,6 +43,7 @@ var ctx = canv.getContext("2d");
 
 // game variables
 var ball, bricks = [], paddle;
+var gameOver;
 var level, lives, score, highScore;
 var textSize, touchX;
 
@@ -72,9 +74,11 @@ function loop(timeNow) {
     timeLast = timeNow;
 
     // update
+    if(!gameOver) {
     updatePaddle(timeDelta);
     updateBall(timeDelta);
     updateBricks(timeDelta);
+    }
 
     // draw
     drawBackground();
@@ -115,18 +119,19 @@ function createBricks() {
 
     // populate the bricks array
     bricks = [];
-    let cols = BRICK_COLS;
+    let cols = BRICK_COLS;  
     let rows = BRICK_ROWS + level * 2;
-    let color, left, rank, rankHigh, top;
+    let color, left, rank, rankHigh, score, top;
     rankHigh = rows * 0.5 - 1;
     for (let i = 0; i < rows; i++) {
         bricks[i] = [];
         rank = Math.floor(i * 0.5);
+        score = (rankHigh - rank) * 2 + 1;
         color = getBrickColor(rank, rankHigh);
         top = wall + (MARGIN + i) * rowH;
         for (let j = 0; j < cols; j++) {
             left = wall + gap + j * colW;
-            bricks[i][j] = new Brick(left, top, w, h, color);
+            bricks[i][j] = new Brick(left, top, w, h, color, score);
         }
     }
 }
@@ -165,10 +170,10 @@ function drawText() {
     let lableSize = textSize * 0.5;
     let margin = wall * 2;
     let maxWidth = width - margin * 2;
-    let maxWidth1 = maxWidth * 0.3;
+    let maxWidth1 = maxWidth * 0.27;
     let maxWidth2 = maxWidth * 0.2;
     let maxWidth3 = maxWidth * 0.2;
-    let maxWidth4 = maxWidth * 0.3;
+    let maxWidth4 = maxWidth * 0.27;
     let x1 = margin;
     let x2 = width * 0.4;
     let x3 = width * 0.6;
@@ -195,6 +200,13 @@ function drawText() {
     ctx.fillText(level, x3, yValue, maxWidth3);
     ctx.textAlign = "right";
     ctx.fillText(highScore, x4, yValue, maxWidth4);
+
+    //gameOver
+     if(gameOver) {
+        ctx.font = textSize + "px " + TEXT_FONT;
+        ctx.textAlign = "center";
+        ctx.fillText(TEXT_GAME_OVER, width * 0.5 , paddle.y - textSize, maxWidth);
+     }
 
 }
 
@@ -273,6 +285,7 @@ function newBall() {
 }
 
 function newGame() {
+    gameOver = false;
     level = 0;
     lives = GAME_LIVES;
     score = 0;
@@ -297,8 +310,11 @@ function newLevel() {
 }
 
 function outOfBounds() {
-    // TODO out of bounds
-    newGame();
+    lives--;
+    if(lives == 0) {
+        gameOver = true;
+    }
+    newBall();
 }
 
 function serve() {
@@ -417,6 +433,7 @@ function updateBricks(delta) {
     OUTER: for (let i = 0; i < bricks.length; i++) {
         for (let j = 0; j < BRICK_COLS; j++) {
             if (bricks[i][j] != null && bricks[i][j].intersect(ball)) {
+                updateScore(bricks[i][j].score);
                 bricks[i][j] = null;
                 ball.yv = -ball.yv;
                 spinBall(); 
@@ -451,6 +468,16 @@ function updatePaddle(delta) {
     }
 }
 
+function updateScore(bricksScore) {
+    score += bricksScore;
+
+    //check for high score
+    if(score > highScore) {
+        highScore = score;
+        localStorage.setItem(KEY_SCORE, highScore);
+    }
+}
+
 function Ball() {
     this.w = wall;
     this.h = wall;
@@ -461,7 +488,7 @@ function Ball() {
     this.yv = 0;
 }
 
-function Brick(left, top, w, h, color) {
+function Brick(left, top, w, h, color, score) {
     this.w = w;
     this.h = h;
     this.bot = top + h;
@@ -469,6 +496,7 @@ function Brick(left, top, w, h, color) {
     this.right = left + w;
     this.top = top;
     this.color = color;
+    this.score = score;
     
 
     this.intersect = function(ball) {
