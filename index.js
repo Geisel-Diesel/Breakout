@@ -2,6 +2,7 @@
 const GAME_LIVES = 3; //starting number of lives
 const KEY_SCORE = "high score"; //save key for local storage o high score
 const BALL_SPD = 0.6; // starting ball speed as a fraction of screen height per second
+const BALL_SPD_MAX = 2; //max ball speed as a multiple of starting speed
 const BALL_SPIN = 0.3; // ball deflection off the paddle (0 = no spin, 1 = high spin)
 const BRICK_COLS = 14; // number of brick columns
 const BRICK_GAP = 0.3; // brick gap as a fraction of wall width
@@ -27,6 +28,7 @@ const TEXT_LEVEL = "Level";
 const TEXT_LIVES = "Ball";
 const TEXT_SCORE = "Score";
 const TEXT_SCORE_HIGH = "Best";
+const TEXT_WIN = "YOU WIN!!!";
 
 
 // definitions
@@ -45,7 +47,7 @@ var ctx = canv.getContext("2d");
 var ball, bricks = [], paddle;
 var gameOver;
 var level, lives, score, highScore;
-var textSize, touchX;
+var numbBricks, textSize, touchX;
 
 // dimensions
 var height, width, wall;
@@ -121,17 +123,19 @@ function createBricks() {
     bricks = [];
     let cols = BRICK_COLS;  
     let rows = BRICK_ROWS + level * 2;
-    let color, left, rank, rankHigh, score, top;
+    let color, left, rank, rankHigh, score, spdMult, top;
+    numbBricks = cols * rows;
     rankHigh = rows * 0.5 - 1;
     for (let i = 0; i < rows; i++) {
         bricks[i] = [];
         rank = Math.floor(i * 0.5);
         score = (rankHigh - rank) * 2 + 1;
+        spdMult = 1 + (rankHigh - rank) / rankHigh * (BALL_SPD_MAX - 1);
         color = getBrickColor(rank, rankHigh);
         top = wall + (MARGIN + i) * rowH;
         for (let j = 0; j < cols; j++) {
             left = wall + gap + j * colW;
-            bricks[i][j] = new Brick(left, top, w, h, color, score);
+            bricks[i][j] = new Brick(left, top, w, h, color, score, spdMult);
         }
     }
 }
@@ -203,9 +207,10 @@ function drawText() {
 
     //gameOver
      if(gameOver) {
+        let text = win ? TEXT_WIN : TEXT_GAME_OVER;
         ctx.font = textSize + "px " + TEXT_FONT;
         ctx.textAlign = "center";
-        ctx.fillText(TEXT_GAME_OVER, width * 0.5 , paddle.y - textSize, maxWidth);
+        ctx.fillText(text, width * 0.5 , paddle.y - textSize, maxWidth);
      }
 
 }
@@ -246,6 +251,9 @@ function keyDown(ev) {
     switch (ev.keyCode) {
         case 32: // space bar (serve the ball)
             serve();
+            if(gameOver) {
+                newGame();
+            }
             break;
         case 37: // left arrow (move paddle left)
             movePaddle(Direction.LEFT);
@@ -289,6 +297,7 @@ function newGame() {
     level = 0;
     lives = GAME_LIVES;
     score = 0;
+    win = false;
 
     //get high score from local storage
     let scoreStr = localStorage.getItem(KEY_SCORE);
@@ -380,6 +389,9 @@ function touchMove(ev) {
 
 function touchStart(ev) {
     if (serve()) {
+        if(gameOver) {
+            newGame();
+        }
         return;
     }
     touchX = ev.touches[0].clientX;
@@ -434,12 +446,25 @@ function updateBricks(delta) {
         for (let j = 0; j < BRICK_COLS; j++) {
             if (bricks[i][j] != null && bricks[i][j].intersect(ball)) {
                 updateScore(bricks[i][j].score);
+                ball.setSpeed(bricks[i][j].spdMult);
                 bricks[i][j] = null;
                 ball.yv = -ball.yv;
                 spinBall(); 
-                // TODO score etc.
+                 numbBricks--;
                 break OUTER;
             }
+        }
+    }
+
+    //next level
+    if(numbBricks == 0) {
+        if(level < MAX_LEVEL) {
+            level++;
+            newLevel();
+        } else {
+            gameOver = true;
+            win = true;
+            newBall();
         }
     }
 }
@@ -486,9 +511,14 @@ function Ball() {
     this.spd = BALL_SPD * height;
     this.xv = 0;
     this.yv = 0;
+
+    this.setSpeed = function(spdMult) {
+        this.spd = Math.max(this.spd, BALL_SPD * height * spdMult);
+        console.log("spd= " + this.spd);
+    }
 }
 
-function Brick(left, top, w, h, color, score) {
+function Brick(left, top, w, h, color, score, spdMult) {
     this.w = w;
     this.h = h;
     this.bot = top + h;
@@ -497,6 +527,7 @@ function Brick(left, top, w, h, color, score) {
     this.top = top;
     this.color = color;
     this.score = score;
+    this.spdMult = spdMult;
     
 
     this.intersect = function(ball) {
